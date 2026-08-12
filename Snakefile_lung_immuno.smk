@@ -31,6 +31,17 @@ DATA_DIR = config["data_dir"]
 NETWORKS_DIR = config["networks_dir"]
 MERGED_NETWORKS_DIR = config["merged_networks_dir"]
 BUILD_NETWORK_OUTPUTS = config.get("build_network_outputs", False)
+PATHWAY_GMT_FILE = os.path.join("resources", "c2.cp.reactome.v7.1.symbols.gmt")
+GMT_FILES = {
+    "c2": PATHWAY_GMT_FILE
+}
+COVARIATES = ["with_covariates", "no_covariates"]
+GMT_TYPES = ["c2"]
+#SUBTYPES = ["all", "adeno"]
+SUBTYPES = ["adeno"]
+TREATMENTS = ["pd1"]
+# TREATMENTS = ["all", "pd1"]
+
 
 # Expression and sample files for PANDA
 IMMUNE_COHORT_TPM_FILE = os.path.join(
@@ -56,10 +67,21 @@ LIONESS_SAMPLE_MAPPING_DATASET = os.path.join(PANDA_DIR, "{dataset}_lioness_samp
 NETWORK_DIR_DATASET = os.path.join(NETWORKS_DIR, "{dataset}")
 MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT = os.path.join(MERGED_NETWORKS_DIR, "{dataset}_merged_net_normalized.RData")
 
+# Basic analysis of networks (indegrees, outdegrees, PCA)
 INDEGREES_DATASET = os.path.join(RESULTS_DIR, "{dataset}_indegrees.txt")
 OUTDEGREES_DATASET = os.path.join(RESULTS_DIR, "{dataset}_outdegrees.txt")
 PCA_INDEGREES_DATASET = os.path.join(FIGURES_DIR, "{dataset}_PCA_indegrees.pdf")
 PD1_NETWORK_DATASET = os.path.join(RESULTS_DIR, "{dataset}_network_CD274.RData")
+
+# LIMMA analysis of indegrees and FGSEA
+LIMMA_RESULTS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_limma_results_subtype_{subtype}_treatment_{treatment}_{covariates}_{gmt}.txt"
+)
+FGSEA_RESULTS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_fgsea_results_subtype_{subtype}_treatment_{treatment}_{covariates}_{gmt}.txt"
+)
 
 
 
@@ -70,6 +92,14 @@ BASE_TARGETS = [
     expand(INDEGREES_DATASET, dataset=DATASETS),
     expand(OUTDEGREES_DATASET, dataset=DATASETS),
     expand(PCA_INDEGREES_DATASET, dataset=DATASETS),
+    expand(
+            LIMMA_RESULTS_FILE,
+            dataset=DATASETS,
+            subtype=SUBTYPES,
+            treatment=TREATMENTS,
+            covariates=COVARIATES,
+            gmt=GMT_TYPES
+        )
 ]
 
 NETWORK_BUILD_TARGETS = [
@@ -237,4 +267,42 @@ rule network_analysis:
             --target_gene {params.target_gene} \
             --seed {params.seed} \
         2> {log}
+        """
+
+rule lung_immuno_limma:
+    input:
+        indegree_file = INDEGREES_DATASET,
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        pathway_gmt = lambda wc: GMT_FILES[wc.gmt]
+    output:
+        limma_results_file = LIMMA_RESULTS_FILE,
+        fgsea_results_file= FGSEA_RESULTS_FILE
+    log:
+        "logs/limma_analysis_{dataset}_{subtype}_{treatment}_{covariates}_{gmt}.log"
+    message:
+        "Performing limma analysis for subtype={wildcards.subtype}, treatment={wildcards.treatment}, covariates={wildcards.covariates}, gmt={wildcards.gmt}"
+    params:
+        bin = config["bin"],
+        subtype=lambda wc: wc.subtype,
+        treatment=lambda wc: wc.treatment,
+        covariates=lambda wc: "TRUE" if wc.covariates == "with_covariates" else "FALSE",
+
+    wildcard_constraints:
+        subtype="all|adeno",
+        treatment="all|pd1",
+        covariates="with_covariates|no_covariates",
+        gmt="c2"
+
+    shell:
+        """
+         Rscript {params.bin}/lung_immuno_limma_indegrees.R \
+            --indegree_file {input.indegree_file} \
+            --clinical_file {input.clinical_file} \
+            --pathway_gmt_file {input.pathway_gmt} \
+            --limma_results_file {output.limma_results_file} \
+            --fgsea_results_file {output.fgsea_results_file} \
+            --subtype_type {params.subtype} \
+            --treatment_type {params.treatment} \
+            --covariates {params.covariates} \
+        &> {log}
         """
