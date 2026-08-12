@@ -30,6 +30,7 @@ DATASETS = config["datasets"]
 DATA_DIR = config["data_dir"]
 NETWORKS_DIR = config["networks_dir"]
 MERGED_NETWORKS_DIR = config["merged_networks_dir"]
+BUILD_NETWORK_OUTPUTS = config.get("build_network_outputs", False)
 
 # Expression and sample files for PANDA
 IMMUNE_COHORT_TPM_FILE = os.path.join(
@@ -55,12 +56,20 @@ LIONESS_SAMPLE_MAPPING_DATASET = os.path.join(PANDA_DIR, "{dataset}_lioness_samp
 NETWORK_DIR_DATASET = os.path.join(NETWORKS_DIR, "{dataset}")
 MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT = os.path.join(MERGED_NETWORKS_DIR, "{dataset}_merged_net_normalized.RData")
 
-BUILD_NETWORK_OUTPUTS = config.get("build_network_outputs", False)
+INDEGREES_DATASET = os.path.join(RESULTS_DIR, "{dataset}_indegrees.txt")
+OUTDEGREES_DATASET = os.path.join(RESULTS_DIR, "{dataset}_outdegrees.txt")
+PCA_INDEGREES_DATASET = os.path.join(FIGURES_DIR, "{dataset}_PCA_indegrees.pdf")
+PD1_NETWORK_DATASET = os.path.join(RESULTS_DIR, "{dataset}_network_CD274.RData")
+
+
 
 BASE_TARGETS = [
     expand(DATASET_EXPRESSION_PANDA_FILE, dataset=DATASETS),
     expand(DATASET_SAMPLES_PANDA_DATASET, dataset=DATASETS),
     expand(PCA_PLOTS_EXPRESSION_FILE, dataset=DATASETS),
+    expand(INDEGREES_DATASET, dataset=DATASETS),
+    expand(OUTDEGREES_DATASET, dataset=DATASETS),
+    expand(PCA_INDEGREES_DATASET, dataset=DATASETS),
 ]
 
 NETWORK_BUILD_TARGETS = [
@@ -189,4 +198,43 @@ rule create_network_edge_file:
             --panda_network_file {input.panda_input} \
             --output_edge_file {output.edge_file} \
             > {log} 2>&1
+        """
+rule network_analysis:
+    """
+    Basic network analysis
+    
+    Output files:
+    - Target gene specific network (.RData)
+    - Network indegrees (.tsv)
+    - PCA plot (.pdf)
+
+    """
+    input:
+        network = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
+        edges = NETWORK_EDGE_FILE_DATASET
+    output:
+        target_network = PD1_NETWORK_DATASET,
+        indegrees = INDEGREES_DATASET,
+        outdegrees = OUTDEGREES_DATASET,
+        pca_plot = PCA_INDEGREES_DATASET
+    params:
+        bin = config["bin"],
+        target_gene = "CD274",
+        seed = 2025
+    log:
+        "logs/network_analysis_{dataset}.log"
+    message:
+        "Performing basic network analysis on {wildcards.dataset} dataset with normalized network"
+    shell:
+        """        
+        Rscript {params.bin}/network_analysis.R \
+            --network_file {input.network} \
+            --edges_file {input.edges} \
+            --target_network {output.target_network} \
+            --indegrees {output.indegrees} \
+            --outdegrees {output.outdegrees} \
+            --pca_plot {output.pca_plot} \
+            --target_gene {params.target_gene} \
+            --seed {params.seed} \
+        2> {log}
         """
