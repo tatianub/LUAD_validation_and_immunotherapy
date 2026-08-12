@@ -1,0 +1,16 @@
+## Bin
+bin: "workflow/bin"
+
+## Directories
+data_dir: "data"
+figures_dir: "figures_lung_immuno"
+results_dir: "results_lung_immuno"
+panda_dir: "panda_input"
+networks_dir: "networks"
+merged_networks_dir: "merged_networks"
+
+datasets: ["SU2C_MARK"]
+prior_dir: "priors"
+
+fgsea_padjust_thresholds: [0.1, 0.05]
+fgsea_es_thresholds: [0.5]

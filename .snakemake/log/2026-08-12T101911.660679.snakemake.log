@@ -1,0 +1,33 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job stats:
+job                                 count    min threads    max threads
+--------------------------------  -------  -------------  -------------
+all                                     1              1              1
+immune_cohort_data_preprocessing        1              1              1
+total                                   2              1              1
+
+Select jobs to execute...
+
+[Wed Aug 12 10:19:12 2026]
+Job 1: Preprocessing immune cohort TPM expression for SU2C_MARK
+Reason: Missing output files: panda_input/SU2C_MARK_samples_for_PANDA.tsv, panda_input/SU2C_MARK_expression_for_PANDA.tsv, figures_lung_immuno/SU2C_MARK_pca_plots_expression.pdf
+
+[Wed Aug 12 10:19:30 2026]
+Finished job 1.
+1 of 2 steps (50%) done
+Select jobs to execute...
+
+[Wed Aug 12 10:19:30 2026]
+localrule all:
+    input: panda_input/SU2C_MARK_expression_for_PANDA.tsv, panda_input/SU2C_MARK_samples_for_PANDA.tsv, figures_lung_immuno/SU2C_MARK_pca_plots_expression.pdf
+    jobid: 0
+    reason: Input files updated by another job: panda_input/SU2C_MARK_samples_for_PANDA.tsv, panda_input/SU2C_MARK_expression_for_PANDA.tsv, figures_lung_immuno/SU2C_MARK_pca_plots_expression.pdf
+    resources: tmpdir=/storage/scratch/tmp
+
+[Wed Aug 12 10:19:30 2026]
+Finished job 0.
+2 of 2 steps (100%) done
+Complete log: .snakemake/log/2026-08-12T101911.660679.snakemake.log
