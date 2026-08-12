@@ -14,3 +14,6 @@ prior_dir: "priors"
 
 fgsea_padjust_thresholds: [0.1, 0.05]
 fgsea_es_thresholds: [0.5]
+
+# Should be false because network outputs are already built and stored in the repo.
+build_network_outputs: false
