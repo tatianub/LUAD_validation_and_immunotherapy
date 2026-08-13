@@ -49,6 +49,7 @@ IMMUNE_COHORT_TPM_FILE = os.path.join(
     "immune_cohort/SU2C-MARK_Harmonized_rnaseqc_tpm_v1.gct"
 )
 CLINICAL_FILE_IMMUNO = os.path.join(DATA_DIR, "immune_cohort/clinical_filtered.txt")
+CLINICAL_FILE_EXTENDED_IMMUNO = os.path.join(DATA_DIR, "immune_cohort/41588_2023_1355_MOESM3_ESM.xlsx")
 
 DATASET_EXPRESSION_PANDA_FILE = os.path.join(PANDA_DIR,  "{dataset}_expression_for_PANDA.tsv")
 DATASET_SAMPLES_PANDA_DATASET = os.path.join(PANDA_DIR, "{dataset}_samples_for_PANDA.tsv")
@@ -82,6 +83,24 @@ FGSEA_RESULTS_FILE = os.path.join(
     RESULTS_DIR,
     "{dataset}_fgsea_results_subtype_{subtype}_treatment_{treatment}_{covariates}_{gmt}.txt"
 )
+# ALL LIMMA models 
+
+LIMMA_RESULTS_FILE_ALL_MODELS = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_limma_results_all_models_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
+)
+FGSEA_RESULTS_FILE_ALL_MODELS = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_fgsea_results_all_models_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
+)
+ALL_MODELS_SUMMARY_PATHWAY = config.get(
+    "all_models_summary_pathway",
+    "REACTOME_PD_1_SIGNALING"
+)
+FGSEA_ALL_MODELS_SUMMARY_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_fgsea_summary_all_models_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
+)
 
 
 
@@ -98,6 +117,35 @@ BASE_TARGETS = [
             subtype=SUBTYPES,
             treatment=TREATMENTS,
             covariates=COVARIATES,
+            gmt=GMT_TYPES
+        ),
+        expand(
+            FGSEA_RESULTS_FILE,
+            dataset=DATASETS,
+            subtype=SUBTYPES,
+            treatment=TREATMENTS,
+            covariates=COVARIATES,
+            gmt=GMT_TYPES
+        ),
+    expand(
+            LIMMA_RESULTS_FILE_ALL_MODELS,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"],
+            gmt=GMT_TYPES
+        ),
+        expand(
+            FGSEA_RESULTS_FILE_ALL_MODELS,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"],
+            gmt=GMT_TYPES
+        ),
+        expand(
+            FGSEA_ALL_MODELS_SUMMARY_FILE,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"],
             gmt=GMT_TYPES
         )
 ]
@@ -306,3 +354,67 @@ rule lung_immuno_limma:
             --covariates {params.covariates} \
         &> {log}
         """
+
+rule lung_immuno_indegree_all_models:
+    input:
+        indegree_file = INDEGREES_DATASET,
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        clinical_file_extended = CLINICAL_FILE_EXTENDED_IMMUNO,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET,
+        pathway_gmt = lambda wc: GMT_FILES[wc.gmt]
+    output:
+        limma_results_file = LIMMA_RESULTS_FILE_ALL_MODELS,
+        fgsea_results_file = FGSEA_RESULTS_FILE_ALL_MODELS
+    log:
+        "logs/limma_all_models_{dataset}_{subtype}_{treatment}_{gmt}.log"
+    message:
+        "Running fixed all-model limma set (M0 + covariate/sensitivity models; no covariates flag) for subtype={wildcards.subtype}, treatment={wildcards.treatment}, gmt={wildcards.gmt}"
+    params:
+        bin = config["bin"],
+        subtype = lambda wc: wc.subtype,
+        treatment = lambda wc: wc.treatment
+    wildcard_constraints:
+        subtype = "adeno",
+        treatment = "pd1",
+        gmt = "c2"
+    shell:
+        """
+        Rscript {params.bin}/lung_immuno_indegree_all_models.R \\
+            --indegree_file {input.indegree_file} \\
+            --clinical_file {input.clinical_file} \\
+            --clinical_file_extended {input.clinical_file_extended} \\
+            --expression_file {input.expression_file} \\
+            --samples_file {input.samples_file} \\
+            --pathway_gmt_file {input.pathway_gmt} \\
+            --limma_results_file {output.limma_results_file} \\
+            --fgsea_results_file {output.fgsea_results_file} \\
+            --subtype_type {params.subtype} \\
+            --treatment_type {params.treatment} \\
+        &> {log}
+        """
+rule summarise_all_models_fgsea:
+    input:
+        fgsea_results_file = FGSEA_RESULTS_FILE_ALL_MODELS
+    output:
+        summary_table = FGSEA_ALL_MODELS_SUMMARY_FILE
+    log:
+        "logs/summarise_all_models_fgsea_{dataset}_{subtype}_{treatment}_{gmt}.log"
+    message:
+        "Summarising all-model FGSEA for pathway={params.pathway}, subtype={wildcards.subtype}, treatment={wildcards.treatment}, gmt={wildcards.gmt}"
+    params:
+        bin = config["bin"],
+        pathway = ALL_MODELS_SUMMARY_PATHWAY
+    wildcard_constraints:
+        subtype = "adeno",
+        treatment = "pd1",
+        gmt = "c2"
+    shell:
+        """
+        Rscript {params.bin}/summarise_all_models_fgsea.R \\
+            --fgsea_results_file {input.fgsea_results_file} \\
+            --pathway {params.pathway} \\
+            --output_table {output.summary_table} \\
+            &> {log}
+        """
+
