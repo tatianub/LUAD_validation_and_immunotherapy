@@ -58,7 +58,10 @@ option_list <- list(
   )
 )
 
-opt_parser <- optparse::OptionParser(option_list = option_list)
+opt_parser <- optparse::OptionParser(
+  option_list = option_list
+)
+
 opt <- optparse::parse_args(opt_parser)
 
 #######################
@@ -115,10 +118,14 @@ data_tpm <- fread(
   header = TRUE
 )
 
-clinical_data <- fread(CLINICAL_FILE)
+clinical_data <- fread(
+  CLINICAL_FILE
+)
 
 if (!all(c("Name", "Description") %in% names(data_tpm))) {
-  stop("TPM GCT file must contain 'Name' and 'Description' columns.")
+  stop(
+    "TPM GCT file must contain 'Name' and 'Description' columns."
+  )
 }
 
 if (!"sample_id" %in% names(clinical_data)) {
@@ -133,8 +140,15 @@ if (!"response" %in% names(clinical_data)) {
 # Step 2: Clean Ensembl gene IDs
 # ========================================
 
-original_ids <- as.character(data_tpm$Name)
-ensembl_ids_clean <- sub("\\..*$", "", original_ids)
+original_ids <- as.character(
+  data_tpm$Name
+)
+
+ensembl_ids_clean <- sub(
+  "\\..*$",
+  "",
+  original_ids
+)
 
 # ========================================
 # Step 3: Fetch protein-coding annotation
@@ -153,7 +167,9 @@ protein_coding_ids <- genes_info[
 ]
 
 if (nrow(protein_coding_ids) == 0) {
-  stop("No protein-coding genes were found in the annotation.")
+  stop(
+    "No protein-coding genes were found in the annotation."
+  )
 }
 
 # ========================================
@@ -171,17 +187,24 @@ data_tpm_matrix <- data.matrix(
 rownames(data_tpm_matrix) <- original_ids
 
 if (anyDuplicated(colnames(data_tpm_matrix))) {
-  stop("Duplicated sample IDs found in TPM matrix.")
+  stop(
+    "Duplicated sample IDs found in TPM matrix."
+  )
 }
 
 # ========================================
 # Step 5: Transform and filter expression
 # ========================================
 
-data_tpm_log <- log2(data_tpm_matrix + 1)
+data_tpm_log <- log2(
+  data_tpm_matrix + 1
+)
 
 data_tpm_log <- data_tpm_log[
-  rowSums(data_tpm_log, na.rm = TRUE) > 0,
+  rowSums(
+    data_tpm_log,
+    na.rm = TRUE
+  ) > 0,
   ,
   drop = FALSE
 ]
@@ -198,7 +221,9 @@ data_tpm_filtered <- data_tpm_log[
 ]
 
 if (nrow(data_tpm_filtered) == 0) {
-  stop("No genes remain after expression filtering.")
+  stop(
+    "No genes remain after expression filtering."
+  )
 }
 
 # ========================================
@@ -213,7 +238,10 @@ clean_rows <- sub(
 
 if (anyDuplicated(clean_rows)) {
   message(
-    "Duplicates found after stripping versions. Aggregating by mean."
+    paste(
+      "Duplicates found after stripping versions.",
+      "Aggregating by mean."
+    )
   )
 
   data_tpm_filtered <- rowsum(
@@ -222,10 +250,16 @@ if (anyDuplicated(clean_rows)) {
     reorder = FALSE
   )
 
-  duplicate_counts <- table(clean_rows)
+  duplicate_counts <- table(
+    clean_rows
+  )
 
   data_tpm_filtered <- data_tpm_filtered /
-    as.numeric(duplicate_counts[rownames(data_tpm_filtered)])
+    as.numeric(
+      duplicate_counts[
+        rownames(data_tpm_filtered)
+      ]
+    )
 } else {
   rownames(data_tpm_filtered) <- clean_rows
 }
@@ -235,13 +269,15 @@ if (anyDuplicated(clean_rows)) {
 # ========================================
 
 annot2 <- protein_coding_ids[
-  protein_coding_ids$gene_id %in% rownames(data_tpm_filtered),
+  protein_coding_ids$gene_id %in%
+    rownames(data_tpm_filtered),
   ,
   drop = FALSE
 ]
 
 annot2 <- annot2[
-  !is.na(annot2$gene_name) & annot2$gene_name != "",
+  !is.na(annot2$gene_name) &
+    annot2$gene_name != "",
   ,
   drop = FALSE
 ]
@@ -259,7 +295,12 @@ annot2 <- annot2[
 ]
 
 if (nrow(annot2) == 0) {
-  stop("No annotated protein-coding genes remain after filtering.")
+  stop(
+    paste(
+      "No annotated protein-coding genes remain",
+      "after filtering."
+    )
+  )
 }
 
 expr2 <- data_tpm_filtered[
@@ -272,16 +313,25 @@ expr2 <- data_tpm_filtered[
 # Step 8: Collapse expression to gene symbols
 # ========================================
 
+# rowsum() uses reorder = TRUE by default.
+# This reproduces the alphabetical gene-symbol ordering
+# of the original preprocessing script.
+
 expr_gene_sum <- rowsum(
   expr2,
-  group = annot2$gene_name,
-  reorder = FALSE
+  group = annot2$gene_name
 )
 
-gene_counts <- table(annot2$gene_name)
+gene_counts <- table(
+  annot2$gene_name
+)
 
 expr_gene_mean <- expr_gene_sum /
-  as.numeric(gene_counts[rownames(expr_gene_sum)])
+  as.numeric(
+    gene_counts[
+      rownames(expr_gene_sum)
+    ]
+  )
 
 expr_gene_mean <- round(
   expr_gene_mean,
@@ -289,7 +339,9 @@ expr_gene_mean <- round(
 )
 
 if (anyDuplicated(rownames(expr_gene_mean))) {
-  stop("Duplicated gene symbols remain after collapsing expression.")
+  stop(
+    "Duplicated gene symbols remain after collapsing expression."
+  )
 }
 
 # ========================================
@@ -469,4 +521,6 @@ cat(
   "\n"
 )
 
-cat("Expression preprocessing completed.\n")
+cat(
+  "Expression preprocessing completed.\n"
+)
