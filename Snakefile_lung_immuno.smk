@@ -43,9 +43,13 @@ TREATMENTS = ["pd1"]
 # TREATMENTS = ["all", "pd1"]
 PRIORS_DIR = config["prior_dir"]
 
-
+# Data files
 MOTIF_PRIOR_FILE = os.path.join(PRIORS_DIR, "tf_prior_names_fixed.tsv")
-
+MYC_CNV_SHEET = config.get("myc_cnv_sheet", "Table_S8_Gistic_Gene_Events")
+IMMUNE_INFILTRATION_FILE = os.path.join(
+    DATA_DIR,
+    "immune_cohort/SU2C-MARK_Harmonized_Curated_Sets_SF_v1.txt"
+)
 # Expression and sample files for PANDA
 IMMUNE_COHORT_TPM_FILE = os.path.join(
     DATA_DIR,
@@ -53,6 +57,10 @@ IMMUNE_COHORT_TPM_FILE = os.path.join(
 )
 CLINICAL_FILE_IMMUNO = os.path.join(DATA_DIR, "immune_cohort/clinical_filtered.txt")
 CLINICAL_FILE_EXTENDED_IMMUNO = os.path.join(DATA_DIR, "immune_cohort/41588_2023_1355_MOESM3_ESM.xlsx")
+
+#####################
+#######OUTPUTS#######
+#####################
 
 DATASET_EXPRESSION_PANDA_FILE = os.path.join(PANDA_DIR,  "{dataset}_expression_for_PANDA.tsv")
 DATASET_SAMPLES_PANDA_DATASET = os.path.join(PANDA_DIR, "{dataset}_samples_for_PANDA.tsv")
@@ -136,6 +144,54 @@ TF_TARGET_EDGES_PD1_ADENO_PDF = os.path.join(
     "{dataset}_tf_target_edges_subtype_adeno_treatment_pd1_pd1_pathway.pdf"
 )
 
+TF_EXPRESSION_PD1_ADENO_PDF = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_tf_expression_subtype_adeno_treatment_pd1_pd1_pathway.pdf"
+)
+
+MYC_FOUR_PANEL_SUMMARY_FILE = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_MYC_four_panel_summary.pdf"
+)
+
+MYC_PD1_IMMUNE_PLOT_FILE = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_MYC_PD1_outdegree_vs_immune_correlations.pdf"
+)
+MYC_PD1_IMMUNE_TABLE_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_PD1_outdegree_vs_immune_correlations.tsv"
+)
+
+MYC_TOTAL_IMMUNE_PLOT_FILE = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_MYC_total_outdegree_vs_immune_correlations.pdf"
+)
+MYC_TOTAL_IMMUNE_TABLE_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_total_outdegree_vs_immune_correlations.tsv"
+)
+
+TF_PD1_IMMUNE_HEATMAP_FILE = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_TF_PD1_outdegree_vs_immune_heatmap.pdf"
+)
+TF_PD1_IMMUNE_TABLE_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_TF_PD1_outdegree_vs_immune_correlations.tsv"
+)
+
+MYC_EXPRESSION_IMMUNE_PLOT_FILE = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_MYC_expression_vs_immune_correlations.pdf"
+)
+MYC_EXPRESSION_IMMUNE_TABLE_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_expression_vs_immune_correlations.tsv"
+)
+
+
+
 
 
 BASE_TARGETS = [
@@ -196,7 +252,58 @@ BASE_TARGETS = [
             treatment=["pd1"],      
             gmt=GMT_TYPES
         ),
-        ENRICHMENT_PLOT_LOLLIPOP_PDF
+        ENRICHMENT_PLOT_LOLLIPOP_PDF,
+           expand(
+            LIMMA_RESULTS_FILE_ALL_MODELS,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"],
+            gmt=GMT_TYPES
+        ),
+        expand(
+            TF_TARGET_EDGES_PD1_ADENO_PDF,
+            dataset=DATASETS
+        ),
+        expand(
+            TF_EXPRESSION_PD1_ADENO_PDF,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_FOUR_PANEL_SUMMARY_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_PD1_IMMUNE_PLOT_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_PD1_IMMUNE_TABLE_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_TOTAL_IMMUNE_PLOT_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_TOTAL_IMMUNE_TABLE_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            TF_PD1_IMMUNE_HEATMAP_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            TF_PD1_IMMUNE_TABLE_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_EXPRESSION_IMMUNE_PLOT_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_EXPRESSION_IMMUNE_TABLE_FILE,
+            dataset=DATASETS
+        )
 ]
 
 NETWORK_BUILD_TARGETS = [
@@ -529,6 +636,138 @@ rule plot_tf_pathway_enrichment:
             --padj_threshold_tfs {params.padj_tfs} \
             --es_threshold_pathways {params.es_path} \
             --es_threshold_tfs {params.es_tfs} \\
+            &> {log}
+        """
+
+
+rule plot_pd1_tf_edges_expression_adeno:
+    input:
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        gmt_file = PATHWAY_GMT_FILE,
+        network_file = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
+        edges_file = NETWORK_EDGE_FILE_DATASET,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET
+    output:
+        tf_target_edges_plot = TF_TARGET_EDGES_PD1_ADENO_PDF,
+        tf_expression_plot = TF_EXPRESSION_PD1_ADENO_PDF
+    log:
+        "logs/plot_pd1_tf_edges_expression_adeno_{dataset}.log"
+    message:
+        "Plotting PD1 pathway TF-edge and TF-expression boxplots for adeno subtype"
+    params:
+        bin = config["bin"],
+        histo_subtype = "adeno",
+        treatment_type = "pd1",
+        seed = 2025
+    shell:
+        """
+        Rscript {params.bin}/plot_p1_TF_edges_expression.R \
+            --clinical_file {input.clinical_file} \
+            --gmt_file {input.gmt_file} \
+            --network_file {input.network_file} \
+            --edges_file {input.edges_file} \
+            --expression_file {input.expression_file} \
+            --samples_file {input.samples_file} \
+            --histo_subtype {params.histo_subtype} \
+            --treatment_type {params.treatment_type} \
+            --seed {params.seed} \
+            --tf_target_edges_pd1_boxplot {output.tf_target_edges_plot} \
+            --tf_expression_boxplot {output.tf_expression_plot} \
+            &> {log}
+        """
+
+
+rule make_myc_four_panel_summary:
+    input:
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        gmt_file = PATHWAY_GMT_FILE,
+        network_file = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
+        edges_file = NETWORK_EDGE_FILE_DATASET,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET,
+        clinical_file_cnv = CLINICAL_FILE_EXTENDED_IMMUNO
+    output:
+        myc_four_panel_summary = MYC_FOUR_PANEL_SUMMARY_FILE
+    log:
+        "logs/make_myc_four_panel_summary_{dataset}.log"
+    message:
+        "Building MYC four-panel summary plot for {wildcards.dataset}"
+    params:
+        bin = config["bin"],
+        histo_subtype = "adeno",
+        treatment_type = "pd1",
+        cnv_sheet = MYC_CNV_SHEET,
+        seed = 2025
+    shell:
+        """
+        Rscript {params.bin}/make_MYC_four_panel_summary.R \
+            --clinical_file {input.clinical_file} \
+            --gmt_file {input.gmt_file} \
+            --network_file {input.network_file} \
+            --edges_file {input.edges_file} \
+            --expression_file {input.expression_file} \
+            --samples_file {input.samples_file} \
+            --clinical_file_cnv {input.clinical_file_cnv} \
+            --cnv_sheet {params.cnv_sheet} \
+            --histo_subtype {params.histo_subtype} \
+            --treatment_type {params.treatment_type} \
+            --seed {params.seed} \
+            --myc_four_panel_summary_file {output.myc_four_panel_summary} \
+            &> {log}
+        """
+
+
+rule tf_immune_infiltration_correlations:
+    input:
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        gmt_file = PATHWAY_GMT_FILE,
+        network_file = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
+        edges_file = NETWORK_EDGE_FILE_DATASET,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET,
+        immune_file = IMMUNE_INFILTRATION_FILE,
+        outdegree_file = OUTDEGREES_DATASET
+    output:
+        myc_pd1_immune_plot = MYC_PD1_IMMUNE_PLOT_FILE,
+        myc_pd1_immune_table = MYC_PD1_IMMUNE_TABLE_FILE,
+        myc_total_immune_plot = MYC_TOTAL_IMMUNE_PLOT_FILE,
+        myc_total_immune_table = MYC_TOTAL_IMMUNE_TABLE_FILE,
+        tf_pd1_immune_heatmap = TF_PD1_IMMUNE_HEATMAP_FILE,
+        tf_pd1_immune_table = TF_PD1_IMMUNE_TABLE_FILE,
+        myc_expression_immune_plot = MYC_EXPRESSION_IMMUNE_PLOT_FILE,
+        myc_expression_immune_table = MYC_EXPRESSION_IMMUNE_TABLE_FILE
+    log:
+        "logs/tf_immune_infiltration_correlations_{dataset}.log"
+    message:
+        "Running TF/MYC immune infiltration correlation analyses for {wildcards.dataset}"
+    params:
+        bin = config["bin"],
+        histo_subtype = "adeno",
+        treatment_type = "pd1",
+        seed = 2025
+    shell:
+        """
+        Rscript {params.bin}/tf_immune_infiltration_correlations.R \
+            --clinical_file {input.clinical_file} \
+            --gmt_file {input.gmt_file} \
+            --network_file {input.network_file} \
+            --edges_file {input.edges_file} \
+            --expression_file {input.expression_file} \
+            --samples_file {input.samples_file} \
+            --immune_file {input.immune_file} \
+            --outdegree_file {input.outdegree_file} \
+            --histo_subtype {params.histo_subtype} \
+            --treatment_type {params.treatment_type} \
+            --seed {params.seed} \
+            --myc_pd1_immune_plot {output.myc_pd1_immune_plot} \
+            --myc_pd1_immune_table {output.myc_pd1_immune_table} \
+            --myc_total_immune_plot {output.myc_total_immune_plot} \
+            --myc_total_immune_table {output.myc_total_immune_table} \
+            --tf_pd1_immune_heatmap {output.tf_pd1_immune_heatmap} \
+            --tf_pd1_immune_table {output.tf_pd1_immune_table} \
+            --myc_expression_immune_plot {output.myc_expression_immune_plot} \
+            --myc_expression_immune_table {output.myc_expression_immune_table} \
             &> {log}
         """
 
