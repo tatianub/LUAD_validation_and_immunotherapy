@@ -41,7 +41,10 @@ GMT_TYPES = ["c2"]
 SUBTYPES = ["adeno"]
 TREATMENTS = ["pd1"]
 # TREATMENTS = ["all", "pd1"]
+PRIORS_DIR = config["prior_dir"]
 
+
+MOTIF_PRIOR_FILE = os.path.join(PRIORS_DIR, "tf_prior_names_fixed.tsv")
 
 # Expression and sample files for PANDA
 IMMUNE_COHORT_TPM_FILE = os.path.join(
@@ -102,6 +105,37 @@ FGSEA_ALL_MODELS_SUMMARY_FILE = os.path.join(
     "{dataset}_fgsea_summary_all_models_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
 )
 
+# Differential network analysis
+
+LIMMA_EDGES_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_limma_results_on_edges_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
+)
+
+TF_ENRICHMENT_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_tf_enrichment_subtype_{subtype}_treatment_{treatment}_{gmt}.txt"
+)
+
+TF_ENRICHMENT_FILE_PD1_ADENO = os.path.join(
+    RESULTS_DIR,
+    "SU2C_MARK_tf_enrichment_subtype_adeno_treatment_pd1_c2.txt"
+)
+PATHWAY_ENRICHMENT_FILE_PD1_ADENO = os.path.join(
+    RESULTS_DIR,
+    "SU2C_MARK_fgsea_results_subtype_adeno_treatment_pd1_with_covariates_c2.txt"
+)
+
+ENRICHMENT_PLOT_LOLLIPOP_PDF = os.path.join(
+    FIGURES_DIR,
+    "pathway_enrichment_tf_lollipop_plot.pdf"
+)
+
+TF_TARGET_EDGES_PD1_ADENO_PDF = os.path.join(
+    FIGURES_DIR,
+    "{dataset}_tf_target_edges_subtype_adeno_treatment_pd1_pd1_pathway.pdf"
+)
+
 
 
 BASE_TARGETS = [
@@ -147,7 +181,22 @@ BASE_TARGETS = [
             subtype=["adeno"],
             treatment=["pd1"],
             gmt=GMT_TYPES
-        )
+        ),
+            expand(
+            LIMMA_EDGES_FILE,
+            dataset=DATASETS,
+            subtype=["adeno"],     
+            treatment=["pd1"],      
+            gmt=GMT_TYPES
+        ),
+        expand(
+            TF_ENRICHMENT_FILE,
+            dataset=DATASETS,
+            subtype=["adeno"],      
+            treatment=["pd1"],      
+            gmt=GMT_TYPES
+        ),
+        ENRICHMENT_PLOT_LOLLIPOP_PDF
 ]
 
 NETWORK_BUILD_TARGETS = [
@@ -417,4 +466,70 @@ rule summarise_all_models_fgsea:
             --output_table {output.summary_table} \\
             &> {log}
         """
+
+rule differential_network_analysis:
+    input:
+        network = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
+        edges = NETWORK_EDGE_FILE_DATASET,
+        clinical = CLINICAL_FILE_IMMUNO,
+        gmt_file = lambda wc: GMT_FILES[wc.gmt]
+    output:
+        limma_res_edges = LIMMA_EDGES_FILE,
+        fgsea_res_TFs = TF_ENRICHMENT_FILE
+    log:
+        "logs/differential_network_analysis_{dataset}_{subtype}_{treatment}_{gmt}.log"
+    message:
+        "Performing differential network analysis for {wildcards.dataset} with subtype={wildcards.subtype}, treatment={wildcards.treatment}, gmt={wildcards.gmt}"
+    params:
+        bin = config["bin"],
+        subtype=lambda wc: wc.subtype,
+        treatment=lambda wc: wc.treatment,
+        cores = 30
+    shell:
+        """
+        Rscript {params.bin}/differential_edges_TFs.R \
+            --network_file {input.network} \
+            --edges_file {input.edges} \
+            --gmt_file {input.gmt_file} \
+            --clinical_file {input.clinical} \
+            --subtype_type {params.subtype} \
+            --treatment_type {params.treatment} \
+            --limma_results_edges {output.limma_res_edges} \
+            --fgsea_results {output.fgsea_res_TFs} \
+            --num_cores {params.cores} \\
+            &> {log}
+        """
+
+
+rule plot_tf_pathway_enrichment:
+    input:
+        tf_res = TF_ENRICHMENT_FILE_PD1_ADENO,
+        path_res = PATHWAY_ENRICHMENT_FILE_PD1_ADENO,
+        motif = MOTIF_PRIOR_FILE
+    output:
+        lollipop_figure = ENRICHMENT_PLOT_LOLLIPOP_PDF
+    log:
+        "logs/plot_tf_pathway_enrichment.log"
+    message:
+        "Plotting TF and pathway enrichment for PD1 signaling in adenocarcinoma"
+    params:
+        bin = config["bin"],
+        padj_path = 0.05,
+        padj_tfs = 0.01,
+        es_path = 0.5,
+        es_tfs = 0.5
+    shell:
+        """
+        Rscript {params.bin}/plot_PD1_signaling_TF_enrichment_results.R \
+            --results_enrichment_tfs {input.tf_res} \
+            --results_enrichment_pathways {input.path_res} \
+            --motif_prior {input.motif} \
+            --output_file {output.lollipop_figure} \
+            --padj_threshold_pathways {params.padj_path} \
+            --padj_threshold_tfs {params.padj_tfs} \
+            --es_threshold_pathways {params.es_path} \
+            --es_threshold_tfs {params.es_tfs} \\
+            &> {log}
+        """
+
 
