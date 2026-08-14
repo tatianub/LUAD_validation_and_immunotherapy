@@ -662,7 +662,7 @@ rule plot_pd1_tf_edges_expression_adeno:
         seed = 2025
     shell:
         """
-        Rscript {params.bin}/plot_p1_TF_edges_expression.R \
+        Rscript {params.bin}/plot_pd1_TF_edges_expression.R \
             --clinical_file {input.clinical_file} \
             --gmt_file {input.gmt_file} \
             --network_file {input.network_file} \
@@ -701,7 +701,7 @@ rule make_myc_four_panel_summary:
         seed = 2025
     shell:
         """
-        Rscript {params.bin}/make_MYC_four_panel_summary.R \
+        Rscript {params.bin}/lung_immuno_myc_four_panel_with_n.R \
             --clinical_file {input.clinical_file} \
             --gmt_file {input.gmt_file} \
             --network_file {input.network_file} \
