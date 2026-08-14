@@ -293,6 +293,7 @@ format_cor_label <- function(cor_test,
 # ========================================
 
 clinical_data <- fread(CLINICAL_FILE)
+head(clinical_data)
 
 if (!"sample_id" %in% names(clinical_data)) {
   stop("'sample_id' column is missing ",
@@ -324,7 +325,7 @@ clinical_data_filt <- subset_clinical_data(
   treatment_type = TREATMENT_TYPE
 
 )
-
+dim(clinical_data_filt)
 if (nrow(clinical_data_filt) == 0) {
   stop("No samples remain after ",
     "clinical filtering."
@@ -421,6 +422,7 @@ expression_dt <- fread(EXPRESSION_FILE)
 
 gene_ids <- expression_dt[[1]]
 
+head(expression_dt)
 expression <- data.matrix(expression_dt[
     , -1,
     with = FALSE
@@ -428,7 +430,7 @@ expression <- data.matrix(expression_dt[
 )
 
 samples <- fread(SAMPLES_FILE)
-
+head(samples)
 if (ncol(samples) < 2) {
 
   stop("Samples file must contain at least ",
@@ -464,9 +466,7 @@ if (anyDuplicated(colnames(expression))
 
 common_samples <- colnames(net)[
   colnames(net) %in%
-    clinical_data_filt$sample_id &
-  colnames(net) %in%
-    colnames(expression)
+    clinical_data_filt$sample_id 
 ]
 
 if (length(common_samples) == 0) {
@@ -680,10 +680,13 @@ p_corr <- ggplot(
     y =
       "MYC→CD274 edge weight",
 
-    subtitle =
+    subtitle = paste0(
       format_cor_label(cor_test,
         prefix = "Spearman rho"
-      )
+      ),
+      "; n = ",
+      data.table::uniqueN(corr_dt$sample_id)
+    )
   )
 
 p_corr <- style_myc_corr_plot(p_corr)
@@ -757,10 +760,13 @@ p_expr_corr <- ggplot(
     y =
       "MYC log2 expression",
 
-    subtitle =
+    subtitle = paste0(
       format_cor_label(expr_cor_test,
         prefix = "Pearson r"
-      )
+      ),
+      "; n = ",
+      data.table::uniqueN(expr_corr_dt$sample_id)
+    )
   )
 
 p_expr_corr <- style_myc_corr_plot(p_expr_corr)
@@ -859,9 +865,9 @@ myc_cnv_long[
     suppressWarnings(as.numeric(myc_cnv))
 ]
 
-myc_cnv_long <- myc_cnv_long[
-    !is.na(myc_cnv)
-  ]
+# myc_cnv_long <- myc_cnv_long[
+#     !is.na(myc_cnv)
+#   ]
 
 # ========================================
 # Step 9: Calculate MYC PD-1 outdegree
@@ -1080,6 +1086,22 @@ myc_cnv_box_summary[
   )
 ]
 
+n_cnv_total <- data.table::uniqueN(
+  cnv_outdegree_dt$sample_id
+)
+
+n_cnv_resistance <- data.table::uniqueN(
+  cnv_outdegree_dt[
+    response == "resistance", sample_id
+  ]
+)
+
+n_cnv_response <- data.table::uniqueN(
+  cnv_outdegree_dt[
+    response == "response", sample_id
+  ]
+)
+
 p_myc_cnv_box <- ggplot(
 
   cnv_outdegree_dt,
@@ -1121,6 +1143,12 @@ p_myc_cnv_box <- ggplot(
 
     title =
       "MYC CNV by response",
+
+    subtitle = paste0(
+      "n = ", n_cnv_total,
+      " (resistance = ", n_cnv_resistance,
+      ", response = ", n_cnv_response, ")"
+    ),
 
     x = NULL,
 
@@ -1196,10 +1224,13 @@ p_cnv_outdegree <- ggplot(
     y =
       "MYC outdegree (sum of edge weights)",
 
-    subtitle =
+    subtitle = paste0(
       format_cor_label(cnv_cor_test,
         prefix = "Spearman rho"
-      )
+      ),
+      "; n = ",
+      data.table::uniqueN(cnv_outdegree_dt$sample_id)
+    )
   ) +
 
   theme_bw() +
