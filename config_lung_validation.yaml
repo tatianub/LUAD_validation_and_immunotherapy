@@ -1,0 +1,15 @@
+## Bin
+bin: "workflow/bin"
+
+## Directories
+data_dir: "data"
+figures_dir: "figures"
+results_dir: "results"
+panda_dir: "panda_input"
+networks_dir: "networks"
+merged_networks_dir: "merged_networks"
+
+datasets: ["GSE13213",
+  "GSE41271", "GSE42127",
+  "GSE50081", "GSE37745",
+  "GSE30219", "GSE81089"]
