@@ -47,7 +47,13 @@ DOLGALEV_SAMPLES_PANDA = os.path.join(PANDA_DIR, "LUAD_Dolgalev_samples_for_PAND
 DATASET_EXPRESSION_PANDA_FILE = os.path.join(PANDA_DIR,  "{dataset}_expression_for_PANDA.tsv")
 DATASET_SAMPLES_PANDA_DATASET = os.path.join(PANDA_DIR, "{dataset}_samples_for_PANDA.tsv")
 
+# PROCESSING CHEN DATA
 
+CHEN_DIR = os.path.join(DATA_DIR, "LUAD_Chen")
+CHEN_ORIGINAL_EXPRESSION_FILE = os.path.join(CHEN_DIR, "Expr_tumor.txt")
+CHEN_OUTPUT_PCA_FILE = os.path.join(FIGURES_DIR, "LUAD_Chen_PCA_plot_with_outliers.pdf")
+CHEN_EXPRESSION_PANDA = os.path.join(PANDA_DIR, "LUAD_Chen_expression_for_PANDA.tsv")
+CHEN_SAMPLES_PANDA = os.path.join(PANDA_DIR, "LUAD_Chen_samples_for_PANDA.tsv")
 
 rule all:
     input:
@@ -57,6 +63,9 @@ rule all:
         DOLGALEV_OUTPUT_PCA_FILE,
         DOLGALEV_EXPRESSION_PANDA,
         DOLGALEV_SAMPLES_PANDA,
+        CHEN_OUTPUT_PCA_FILE,
+        CHEN_EXPRESSION_PANDA,
+        CHEN_SAMPLES_PANDA
 
 rule download_from_GEO:
     output:
@@ -100,5 +109,31 @@ rule process_dolgalev_data:
             --exp_clean {output.expression_panda} \
             --pca_plot {output.pca_file} \
             --samples_file {output.samples_panda} \
+            2> {log}
+        """
+
+rule chen_luad_expression_analysis:
+    """
+    Process LUAD Chen expression data to remove outliers and perform PCA analysis
+    """
+    input:
+        expression_file = CHEN_ORIGINAL_EXPRESSION_FILE,
+    output:
+        pca_plot = CHEN_OUTPUT_PCA_FILE,
+        expression_matrix = CHEN_EXPRESSION_PANDA,
+        samples_file = CHEN_SAMPLES_PANDA
+    log:
+        "logs/process_expression_data_chen.log"
+    message:
+        "Processing expression data"
+    params:
+        bin = config["bin"]
+    shell:
+        """
+        Rscript {params.bin}/LUAD_Chen_expression_preprocessing.R \
+            --expression_file {input.expression_file} \
+            --exp_clean {output.expression_matrix} \
+            --pca_plot {output.pca_plot} \
+            --samples_file {output.samples_file} \
             2> {log}
         """
