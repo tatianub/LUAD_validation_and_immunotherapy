@@ -36,12 +36,27 @@ DATASET_ORIGINAL_EXPRESSION_FILE = os.path.join(DATA_DIR, "{dataset}", "{dataset
 DATASET_ORIGINAL_PROBE_ANNOTATION_FILE = os.path.join(DATA_DIR, "{dataset}", "{dataset}_probe_annotation.RData")
 DATASET_ORIGINAL_CLINICAL_FILE = os.path.join(DATA_DIR, "{dataset}", "{dataset}_clinical.RData")
 
+# Dolgalev preprocessing
+DOLGALEV_DIR = os.path.join(DATA_DIR, "LUAD_Dolgalev")
+# PROCESSING DOLGALEV DATA
+DOLGALEV_ORIGINAL_EXPRESSION_FILE = os.path.join(DOLGALEV_DIR, "rna-counts-normalized-n246.csv")
+DOLGALEV_OUTPUT_PCA_FILE = os.path.join(FIGURES_DIR, "LUAD_Dolgalev_PCA_plot_with_outliers.pdf")
+DOLGALEV_EXPRESSION_PANDA = os.path.join(PANDA_DIR, "LUAD_Dolgalev_expression_for_PANDA.tsv")
+DOLGALEV_SAMPLES_PANDA = os.path.join(PANDA_DIR, "LUAD_Dolgalev_samples_for_PANDA.tsv")
+
+DATASET_EXPRESSION_PANDA_FILE = os.path.join(PANDA_DIR,  "{dataset}_expression_for_PANDA.tsv")
+DATASET_SAMPLES_PANDA_DATASET = os.path.join(PANDA_DIR, "{dataset}_samples_for_PANDA.tsv")
+
+
 
 rule all:
     input:
         expand(DATASET_ORIGINAL_EXPRESSION_FILE, dataset=DATASETS),
         expand(DATASET_ORIGINAL_PROBE_ANNOTATION_FILE, dataset=DATASETS),
-        expand(DATASET_ORIGINAL_CLINICAL_FILE, dataset=DATASETS)
+        expand(DATASET_ORIGINAL_CLINICAL_FILE, dataset=DATASETS),
+        DOLGALEV_OUTPUT_PCA_FILE,
+        DOLGALEV_EXPRESSION_PANDA,
+        DOLGALEV_SAMPLES_PANDA,
 
 rule download_from_GEO:
     output:
@@ -63,4 +78,27 @@ rule download_from_GEO:
             --probe_annotation_file {output.probe_annotation_file} \
             --clinical_file {output.clinical_file} \
             > {log} 2>&1
+        """
+
+rule process_dolgalev_data:
+    input:
+        expression_file = DOLGALEV_ORIGINAL_EXPRESSION_FILE
+    output:
+        pca_file = DOLGALEV_OUTPUT_PCA_FILE,
+        expression_panda = DOLGALEV_EXPRESSION_PANDA,
+        samples_panda = DOLGALEV_SAMPLES_PANDA
+    log:
+        "logs/process_expression_data_dolgalev.log"
+    message:
+        "Processing expression data"
+    params:
+        bin = config["bin"]
+    shell:
+        """
+        Rscript {params.bin}/LUAD_Dolgalev_expression_preprocessing.R \
+            --expression_file {input.expression_file} \
+            --exp_clean {output.expression_panda} \
+            --pca_plot {output.pca_file} \
+            --samples_file {output.samples_panda} \
+            2> {log}
         """
