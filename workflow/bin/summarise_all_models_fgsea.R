@@ -1,6 +1,7 @@
 #####################
 ## Load R packages ##
 #####################
+
 required_libraries <- c(
   "data.table",
   "dplyr",
@@ -17,6 +18,7 @@ for (lib in required_libraries) {
 ####################
 ## Read arguments ##
 ####################
+
 option_list <- list(
   optparse::make_option(
     c("--fgsea_results_file"),
@@ -56,38 +58,52 @@ if (is.null(OUTPUT_TABLE)) {
   stop("--output_table is required.")
 }
 
+
 ####################
 ## Model metadata ##
 ####################
+
 model_meta <- data.frame(
   model = c(
     "M0_response_only_all_samples",
     "M1_age_sex_smoking",
     "M2_age_sex_smoking_PDL1",
     "S2a_response_only_41_subset",
-    "S2b_response_TMB_purity"
+    "S2b_response_TMB",
+    "S2c_response_purity",
+    "S2d_response_TMB_purity"
   ),
+
   label = c(
     "M0_response_only_all_samples",
     "M1_age_sex_smoking",
     "M2_age_sex_smoking_PDL1",
     "S2a_response_only_41_subset",
-    "S2b_response_TMB_purity"
+    "S2b_response_TMB",
+    "S2c_response_purity",
+    "S2d_response_TMB_purity"
   ),
+
   samples = c(
     "all samples",
     "all with age/sex/smoking",
     "all with age/sex/smoking/PDL1",
     "41 pts (TMB+purity available)",
+    "41 pts (TMB+purity available)",
+    "41 pts (TMB+purity available)",
     "41 pts (TMB+purity available)"
   ),
+
   formula = c(
     "~ response",
     "~ response + age + sex + smoking",
     "~ response + age + sex + smoking + PDL1_expression",
     "~ response",
+    "~ response + TMB",
+    "~ response + purity",
     "~ response + TMB + purity"
   ),
+
   stringsAsFactors = FALSE
 )
 
@@ -95,26 +111,43 @@ model_meta <- data.frame(
 ######################
 ## Read fgsea table ##
 ######################
+
 fgsea <- fread(FGSEA_RESULTS_FILE)
 
-pathway_res <- fgsea[fgsea$pathway == PATHWAY, ]
+pathway_res <- fgsea[
+  fgsea$pathway == PATHWAY,
+]
 
 if (nrow(pathway_res) == 0) {
   stop(
-    "Pathway '", PATHWAY, "' not found in ", FGSEA_RESULTS_FILE, ".\n",
+    "Pathway '", PATHWAY, "' not found in ",
+    FGSEA_RESULTS_FILE, ".\n",
     "Available pathways (first 20): ",
-    paste(head(unique(fgsea$pathway), 20), collapse = ", ")
+    paste(
+      head(unique(fgsea$pathway), 20),
+      collapse = ", "
+    )
   )
 }
+
+
+####################################
+## Extract results for each model ##
+####################################
 
 pathway_res <- pathway_res[, .(
   model,
   n_samples,
   n_responders,
   n_non_responders,
-  NES,
+  ES,
   padj
 )]
+
+
+######################################
+## Merge results with model details ##
+######################################
 
 summary_table <- merge(
   model_meta,
@@ -123,8 +156,18 @@ summary_table <- merge(
   all.x = TRUE
 )
 
+# Restore the intended model order
 summary_table <- summary_table[
-  match(model_meta$model, summary_table$model), ]
+  match(
+    model_meta$model,
+    summary_table$model
+  ),
+]
+
+
+################################
+## Select output table fields ##
+################################
 
 summary_table <- summary_table[, c(
   "label",
@@ -133,14 +176,32 @@ summary_table <- summary_table[, c(
   "n_samples",
   "n_responders",
   "n_non_responders",
-  "NES",
+  "ES",
   "padj"
 )]
 
 colnames(summary_table)[1] <- "model"
 
-cat("\nSummary table for pathway:", PATHWAY, "\n\n")
-print(summary_table, row.names = FALSE)
+
+###################
+## Print results ##
+###################
+
+cat(
+  "\nSummary table for pathway:",
+  PATHWAY,
+  "\n\n"
+)
+
+print(
+  summary_table,
+  row.names = FALSE
+)
+
+
+###################
+## Write results ##
+###################
 
 write.table(
   summary_table,
@@ -150,4 +211,8 @@ write.table(
   row.names = FALSE
 )
 
-cat("\nSaved to:", OUTPUT_TABLE, "\n")
+cat(
+  "\nSaved to:",
+  OUTPUT_TABLE,
+  "\n"
+)
