@@ -190,8 +190,22 @@ MYC_EXPRESSION_IMMUNE_TABLE_FILE = os.path.join(
     "{dataset}_MYC_expression_vs_immune_correlations.tsv"
 )
 
-
-
+ESTIMATE_EXPRESSION_GCT_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_estimate_expression.gct"
+)
+ESTIMATE_EXPRESSION_FILTERED_GCT_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_estimate_expression_filtered.gct"
+)
+ESTIMATE_SCORES_GCT_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_estimate_scores.gct"
+)
+ESTIMATE_SCORES_TRANSPOSED_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_estimate_scores_transposed.tsv"
+)
 
 
 BASE_TARGETS = [
@@ -302,6 +316,10 @@ BASE_TARGETS = [
         ),
         expand(
             MYC_EXPRESSION_IMMUNE_TABLE_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            ESTIMATE_SCORES_TRANSPOSED_FILE,
             dataset=DATASETS
         )
 ]
@@ -772,3 +790,29 @@ rule tf_immune_infiltration_correlations:
         """
 
 
+rule estimate_scores:
+    input:
+        expr_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET
+    output:
+        expression_gct = ESTIMATE_EXPRESSION_GCT_FILE,
+        expression_filtered_gct = ESTIMATE_EXPRESSION_FILTERED_GCT_FILE,
+        scores_gct = ESTIMATE_SCORES_GCT_FILE,
+        scores_tsv = ESTIMATE_SCORES_TRANSPOSED_FILE
+    log:
+        "logs/estimate_scores_{dataset}.log"
+    message:
+        "Running ESTIMATE for {wildcards.dataset}"
+    params:
+        bin = config["bin"]
+    shell:
+        """
+        Rscript {params.bin}/estimate.R \
+            --expr_file {input.expr_file} \
+            --samples_file {input.samples_file} \
+            --output_expression_gct_file {output.expression_gct} \
+            --output_expression_gct_file_filtered {output.expression_filtered_gct} \
+            --output_estimate_scores_gct_file {output.scores_gct} \
+            --output_estimate_scores_tsv_file_transposed {output.scores_tsv} \
+            > {log} 2>&1
+        """
