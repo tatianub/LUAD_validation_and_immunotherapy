@@ -759,13 +759,7 @@ write.table(
   row.names = TRUE
 )
 
-write.table(
-  res_fgsea,
-  file = FGSEA_RESULTS_FILE,
-  sep = "\t",
-  quote = FALSE,
-  row.names = TRUE
-)
+save_fgsea_results(res_fgsea, FGSEA_RESULTS_FILE)
 
 cat("\nSaved LIMMA results to:", LIMMA_RESULTS_FILE, "\n")
 cat("Saved FGSEA results to:", FGSEA_RESULTS_FILE, "\n")
