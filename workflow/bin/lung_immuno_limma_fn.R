@@ -278,19 +278,20 @@ run_network_analysis <- function(net_clean,
   return(res_net)
 }
 
-
 run_fgsea <- function(res_all,
                       gmt_file,
                       min_size = 0,
                       max_size = 1000,
                       nproc = 1) {
+
   pt <- fgsea::gmtPathways(gmt_file)
   comparisons <- unique(res_all$contrast)
 
   fgsea_results_list <- lapply(comparisons, function(comparison) {
+
     # Filter data for the specific contrast
     data <- dplyr::filter(
-      res_all, 
+      res_all,
       grepl(comparison, contrast, fixed = TRUE)
     )
 
@@ -299,7 +300,7 @@ run_fgsea <- function(res_all,
     ranks <- ranks[!is.na(ranks)]
     ranks <- sort(ranks, decreasing = TRUE)
 
-    # Run multilevel fGSEA
+    # Run multilevel fgsea
     fgseaRes <- fgsea::fgseaMultilevel(
       pathways = pt,
       stats = ranks,
@@ -310,14 +311,25 @@ run_fgsea <- function(res_all,
 
     if (nrow(fgseaRes) == 0) return(NULL)
 
-    # Select core columns and add comparison metadata
-    fgseaRes <- fgseaRes[, 1:7]
+    # Keep relevant columns, including leading edge
+    fgseaRes <- fgseaRes[, .(
+      pathway,
+      pval,
+      padj,
+      log2err,
+      ES,
+      NES,
+      size,
+      leadingEdge
+    )]
+
+    # Add comparison metadata
     fgseaRes$cmp <- comparison
 
     return(fgseaRes)
   })
 
-  # Combine results into a single data.table
+  # Combine results
   fgseaRes_all <- data.table::rbindlist(
     Filter(Negate(is.null), fgsea_results_list),
     fill = TRUE
@@ -329,21 +341,33 @@ run_fgsea <- function(res_all,
 }
 
 save_fgsea_results <- function(results, output_file) {
+
   if (!is.null(results) && nrow(results) > 0) {
-    # Write the results table to a tab-separated file
+
+    results_out <- data.table::copy(results)
+
+    # Convert leading-edge list to semicolon-separated genes
+    if ("leadingEdge" %in% colnames(results_out)) {
+      results_out[, leadingEdge := vapply(
+        leadingEdge,
+        function(x) paste(x, collapse = ";"),
+        character(1)
+      )]
+    }
+
     write.table(
-      results, 
-      file = output_file, 
-      sep = "\t", 
-      quote = FALSE, 
+      results_out,
+      file = output_file,
+      sep = "\t",
+      quote = FALSE,
       row.names = FALSE
     )
-    
-    # Log successful save and metadata
+
     cat("Results saved to:", output_file, "\n")
-    cat("Number of results:", nrow(results), "\n")
+    cat("Number of results:", nrow(results_out), "\n")
+
   } else {
-    # Log that no data was available for output
+
     cat("No results to save for:", output_file, "\n")
   }
 }
