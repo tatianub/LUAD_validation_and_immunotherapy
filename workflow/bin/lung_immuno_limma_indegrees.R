@@ -382,12 +382,5 @@ write.table(
   row.names = TRUE
 )
 
-write.table(
-  res_fgsea,
-  file = FGSEA_RESULTS_FILE,
-  sep = "\t",
-  quote = FALSE,
-  row.names = TRUE
-)
-
+save_fgsea_results(res_fgsea, FGSEA_RESULTS_FILE)
 cat("Limma and fgsea analyses completed.\n")
