@@ -180,6 +180,9 @@ mutation_burden <- read_excel(
   CLINICAL_FILE_EXTENDED,
   sheet = "Table_S5_Mutation_Burden"
 )
+mutation_burden$TMB_log <- log10(
+  (mutation_burden$TMB + 1) / 33
+)
 
 mutation_burden$sample_id <-
   mutation_burden$Harmonized_SU2C_WES_Tumor_Sample_ID_v2
@@ -344,7 +347,7 @@ covariates_full <- data.frame(
     ],
 
   tmb_status =
-    mutation_burden$TMB[
+    mutation_burden$TMB_log[
       match(
         clinical_data_ordered$sample_id,
         mutation_burden$sample_id
