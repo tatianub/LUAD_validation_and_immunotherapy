@@ -202,9 +202,9 @@ if (nrow(myc_row) != 1L) stop("Expected one MYC CNV row, found ", nrow(myc_row))
 # Keep only CNV columns corresponding to patients in the analysis.
 # The Excel sheet also contains metadata (Gene ID, Cytoband, etc.).
 
-dt[, id_norm := normalize_id(sample_id)]
+dt[, id_norm := normalize_sample_id(sample_id)]
 cnv_cols <- setdiff(names(myc_row), gene_col)
-cnv_cols <- cnv_cols[normalize_id(cnv_cols) %in% dt$id_norm]
+cnv_cols <- cnv_cols[normalize_sample_id(cnv_cols) %in% dt$id_norm]
 if (!length(cnv_cols)) {
   stop("No CNV sample columns match the clinical/network sample IDs")
 }
@@ -215,7 +215,7 @@ cnv_long <- melt(
   value.name = "myc_cnv",
   variable.factor = FALSE
 )
-cnv_long[, id_norm := normalize_id(cnv_sample)]
+cnv_long[, id_norm := normalize_sample_id(cnv_sample)]
 cnv_long[, myc_cnv := suppressWarnings(as.numeric(myc_cnv))]
 if (anyDuplicated(cnv_long$id_norm)) {
   stop("Duplicate normalized CNV sample IDs")
