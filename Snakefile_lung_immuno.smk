@@ -926,7 +926,7 @@ rule predictive_modeling_without_tmb_with_immune:
             > {log} 2>&1
         """
 
-#not finished rule!!!
+
 rule predictive_modeling_tmb_subset:
     input:
         indegree_file = INDEGREES_DATASET,
