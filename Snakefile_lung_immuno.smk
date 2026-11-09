@@ -149,9 +149,26 @@ TF_EXPRESSION_PD1_ADENO_PDF = os.path.join(
     "{dataset}_tf_expression_subtype_adeno_treatment_pd1_pd1_pathway.pdf"
 )
 
-MYC_FOUR_PANEL_SUMMARY_FILE = os.path.join(
+MYC_LE_TARGETING_LINEAR_MODELS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_PD1_leading_edge_linear_models.tsv"
+)
+
+MYC_LE_TARGETING_LOGISTIC_MODELS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_PD1_leading_edge_logistic_models.tsv"
+)
+MYC_LE_TARGETING_LOGISTIC_LRT_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_PD1_leading_edge_logistic_lrt.tsv"
+)
+MYC_LE_TARGETING_INTERACTION_RESULTS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_MYC_PD1_leading_edge_interaction_results.tsv"
+)
+MYC_LE_TARGETING_FOUR_PANEL_SUMMARY_FILE = os.path.join(
     FIGURES_DIR,
-    "{dataset}_MYC_four_panel_summary.pdf"
+    "{dataset}_MYC_LE_targeting_four_panel_summary.pdf"
 )
 
 MYC_PD1_IMMUNE_PLOT_FILE = os.path.join(
@@ -207,6 +224,11 @@ ESTIMATE_SCORES_TRANSPOSED_FILE = os.path.join(
     "{dataset}_estimate_scores_transposed.tsv"
 )
 
+PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_predictive_model_logistic_results_subtype_{subtype}_treatment_{treatment}.tsv"
+)
+
 
 BASE_TARGETS = [
     expand(DATASET_EXPRESSION_PANDA_FILE, dataset=DATASETS),
@@ -229,13 +251,6 @@ BASE_TARGETS = [
             subtype=SUBTYPES,
             treatment=TREATMENTS,
             covariates=COVARIATES,
-            gmt=GMT_TYPES
-        ),
-    expand(
-            LIMMA_RESULTS_FILE_ALL_MODELS,
-            dataset=DATASETS,
-            subtype=["adeno"],
-            treatment=["pd1"],
             gmt=GMT_TYPES
         ),
         expand(
@@ -283,7 +298,23 @@ BASE_TARGETS = [
             dataset=DATASETS
         ),
         expand(
-            MYC_FOUR_PANEL_SUMMARY_FILE,
+            MYC_LE_TARGETING_LINEAR_MODELS_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_LE_TARGETING_LOGISTIC_MODELS_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_LE_TARGETING_LOGISTIC_LRT_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_LE_TARGETING_INTERACTION_RESULTS_FILE,
+            dataset=DATASETS
+        ),
+        expand(
+            MYC_LE_TARGETING_FOUR_PANEL_SUMMARY_FILE,
             dataset=DATASETS
         ),
         expand(
@@ -321,6 +352,12 @@ BASE_TARGETS = [
         expand(
             ESTIMATE_SCORES_TRANSPOSED_FILE,
             dataset=DATASETS
+        ),
+        expand(
+            PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"]
         )
 ]
 
@@ -695,43 +732,48 @@ rule plot_pd1_tf_edges_expression_adeno:
             &> {log}
         """
 
-
-rule make_myc_four_panel_summary:
+rule myc_le_targeting_analysis:
     input:
         clinical_file = CLINICAL_FILE_IMMUNO,
-        gmt_file = PATHWAY_GMT_FILE,
         network_file = MERGED_NETWORKS_FILE_DATASET_NORMALIZED_INPUT,
         edges_file = NETWORK_EDGE_FILE_DATASET,
         expression_file = DATASET_EXPRESSION_PANDA_FILE,
         samples_file = DATASET_SAMPLES_PANDA_DATASET,
-        clinical_file_cnv = CLINICAL_FILE_EXTENDED_IMMUNO
+        clinical_file_cnv = CLINICAL_FILE_EXTENDED_IMMUNO,
+        tf_fgsea_file = TF_ENRICHMENT_FILE_PD1_ADENO
     output:
-        myc_four_panel_summary = MYC_FOUR_PANEL_SUMMARY_FILE
+        linear_models = MYC_LE_TARGETING_LINEAR_MODELS_FILE,
+        logistic_models = MYC_LE_TARGETING_LOGISTIC_MODELS_FILE,
+        logistic_lrt = MYC_LE_TARGETING_LOGISTIC_LRT_FILE,
+        interaction_results = MYC_LE_TARGETING_INTERACTION_RESULTS_FILE,
+        four_panel_summary = MYC_LE_TARGETING_FOUR_PANEL_SUMMARY_FILE
     log:
-        "logs/make_myc_four_panel_summary_{dataset}.log"
+        "logs/myc_le_targeting_analysis_{dataset}.log"
     message:
-        "Building MYC four-panel summary plot for {wildcards.dataset}"
+        "Analyzing MYC leading-edge targeting for {wildcards.dataset}"
     params:
         bin = config["bin"],
         histo_subtype = "adeno",
         treatment_type = "pd1",
-        cnv_sheet = MYC_CNV_SHEET,
-        seed = 2025
+        cnv_sheet = MYC_CNV_SHEET
     shell:
         """
-        Rscript {params.bin}/lung_immuno_myc_four_panel_with_n.R \
+        Rscript {params.bin}/MYC_LE_targeting_analysis.R \
             --clinical_file {input.clinical_file} \
-            --gmt_file {input.gmt_file} \
             --network_file {input.network_file} \
             --edges_file {input.edges_file} \
             --expression_file {input.expression_file} \
             --samples_file {input.samples_file} \
             --clinical_file_cnv {input.clinical_file_cnv} \
             --cnv_sheet {params.cnv_sheet} \
+            --tf_fgsea_file {input.tf_fgsea_file} \
             --histo_subtype {params.histo_subtype} \
             --treatment_type {params.treatment_type} \
-            --seed {params.seed} \
-            --myc_four_panel_summary_file {output.myc_four_panel_summary} \
+            --linear_models_file {output.linear_models} \
+            --logistic_models_file {output.logistic_models} \
+            --logistic_lrt_file {output.logistic_lrt} \
+            --interaction_results_file {output.interaction_results} \
+            --four_panel_summary_file {output.four_panel_summary} \
             &> {log}
         """
 
@@ -814,5 +856,41 @@ rule estimate_scores:
             --output_expression_gct_file_filtered {output.expression_filtered_gct} \
             --output_estimate_scores_gct_file {output.scores_gct} \
             --output_estimate_scores_tsv_file_transposed {output.scores_tsv} \
+            > {log} 2>&1
+        """
+
+
+rule predictive_modeling_without_tmb_with_immune:
+    input:
+        indegree_file = INDEGREES_DATASET,
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET,
+        immune_estimate = ESTIMATE_SCORES_TRANSPOSED_FILE
+    output:
+        logistic_results = PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE
+    log:
+        "logs/predictive_modeling_without_tmb_with_immune_{dataset}_{subtype}_{treatment}.log"
+    message:
+        "Running predictive modeling without TMB with immune covariates for dataset={wildcards.dataset}, subtype={wildcards.subtype}, treatment={wildcards.treatment}"
+    params:
+        bin = config["bin"],
+        subtype = lambda wc: wc.subtype,
+        treatment = lambda wc: wc.treatment,
+        seed = 2026
+    wildcard_constraints:
+        subtype = "adeno",
+        treatment = "pd1"
+    shell:
+        """
+        Rscript {params.bin}/predictive_modeling_without_TMB_with_immune_updated.R \
+            --indegree_file {input.indegree_file} \
+            --clinical_file {input.clinical_file} \
+            --expression_file {input.expression_file} \
+            --samples_file {input.samples_file} \
+            --immune_estimate {input.immune_estimate} \
+            --subtype_type {params.subtype} \
+            --treatment_type {params.treatment} \
+            --results_logistic_models {output.logistic_results} \
             > {log} 2>&1
         """
