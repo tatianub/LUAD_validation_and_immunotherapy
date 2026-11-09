@@ -229,6 +229,23 @@ PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE = os.path.join(
     "{dataset}_predictive_model_logistic_results_subtype_{subtype}_treatment_{treatment}.tsv"
 )
 
+FGSEA_RESULTS_FILE_PD1 = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_fgsea_results_subtype_adeno_treatment_pd1_with_covariates_c2.txt"
+)
+
+FGSEA_RESULTS_FILE_TMB_SUBSET = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_fgsea_results_all_models_subtype_adeno_treatment_pd1_c2.txt"
+)
+PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE_TMB_SUBSET = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_predictive_model_logistic_results_tmb_subset_subtype_{subtype}_treatment_{treatment}.tsv"
+)
+PREDICTIVE_MODEL_ROC_RESULTS_FILE_TMB_SUBSET = os.path.join(
+    RESULTS_DIR,
+    "{dataset}_predictive_model_roc_results_tmb_subset_subtype_{subtype}_treatment_{treatment}.tsv"
+)
 
 BASE_TARGETS = [
     expand(DATASET_EXPRESSION_PANDA_FILE, dataset=DATASETS),
@@ -355,6 +372,18 @@ BASE_TARGETS = [
         ),
         expand(
             PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"]
+        ),
+        expand(
+            PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE_TMB_SUBSET,
+            dataset=DATASETS,
+            subtype=["adeno"],
+            treatment=["pd1"]
+        ),
+        expand(
+            PREDICTIVE_MODEL_ROC_RESULTS_FILE_TMB_SUBSET,
             dataset=DATASETS,
             subtype=["adeno"],
             treatment=["pd1"]
@@ -866,7 +895,8 @@ rule predictive_modeling_without_tmb_with_immune:
         clinical_file = CLINICAL_FILE_IMMUNO,
         expression_file = DATASET_EXPRESSION_PANDA_FILE,
         samples_file = DATASET_SAMPLES_PANDA_DATASET,
-        immune_estimate = ESTIMATE_SCORES_TRANSPOSED_FILE
+        immune_estimate = ESTIMATE_SCORES_TRANSPOSED_FILE,
+        fgsea_results = FGSEA_RESULTS_FILE_PD1
     output:
         logistic_results = PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE
     log:
@@ -891,6 +921,52 @@ rule predictive_modeling_without_tmb_with_immune:
             --immune_estimate {input.immune_estimate} \
             --subtype_type {params.subtype} \
             --treatment_type {params.treatment} \
+            --fgsea_results {input.fgsea_results} \
             --results_logistic_models {output.logistic_results} \
+            > {log} 2>&1
+        """
+
+#not finished rule!!!
+rule predictive_modeling_tmb_subset:
+    input:
+        indegree_file = INDEGREES_DATASET,
+        clinical_file = CLINICAL_FILE_IMMUNO,
+        expression_file = DATASET_EXPRESSION_PANDA_FILE,
+        samples_file = DATASET_SAMPLES_PANDA_DATASET,
+        immune_estimate = ESTIMATE_SCORES_TRANSPOSED_FILE,
+        pathway_gmt_file = PATHWAY_GMT_FILE,
+        fgsea_results_tmb_subset = FGSEA_RESULTS_FILE_TMB_SUBSET,
+        clinical_file_extended = CLINICAL_FILE_EXTENDED_IMMUNO
+
+    output:
+        logistic_results = PREDICTIVE_MODEL_LOGISTIC_RESULTS_FILE_TMB_SUBSET,
+        roc_results = PREDICTIVE_MODEL_ROC_RESULTS_FILE_TMB_SUBSET
+    log:
+        "logs/predictive_modeling_tmb_subset_{dataset}_{subtype}_{treatment}.log"
+    message:
+        "Running predictive modeling for the TMB subset dataset={wildcards.dataset}, subtype={wildcards.subtype}, treatment={wildcards.treatment}"
+    params:
+        bin = config["bin"],
+        subtype = lambda wc: wc.subtype,
+        treatment = lambda wc: wc.treatment,
+        seed = 2026
+    wildcard_constraints:
+        subtype = "adeno",
+        treatment = "pd1"
+    shell:
+        """
+        Rscript {params.bin}/predictive_modeling_TMB_subset.R \
+            --indegree_file {input.indegree_file} \
+            --clinical_file {input.clinical_file} \
+            --clinical_file_extended {input.clinical_file_extended} \
+            --expression_file {input.expression_file} \
+            --samples_file {input.samples_file} \
+            --immune_estimate {input.immune_estimate} \
+            --subtype_type {params.subtype} \
+            --treatment_type {params.treatment} \
+            --pathway_gmt_file {input.pathway_gmt_file} \
+            --fgsea_results_tmb_subset {input.fgsea_results_tmb_subset} \
+            --results_logistic_models {output.logistic_results} \
+            --results_roc_comparisons {output.roc_results} \
             > {log} 2>&1
         """
