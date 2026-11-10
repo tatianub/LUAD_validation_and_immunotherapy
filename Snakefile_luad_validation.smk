@@ -116,6 +116,133 @@ def get_dataset_feature_file(wildcards):
         )
     return DATASET_FEATURE_FILES[dataset]
 
+GSE30219_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE30219", "GSE30219_clinical.RData")
+GSE30219_PUBLICATION_CLINICAL = os.path.join(DATA_DIR, "GSE30219", "GSE30129_clinical_data_pdf.txt")
+GSE13213_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE13213", "GSE13213_clinical.RData")
+GSE41271_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE41271", "GSE41271_clinical.RData")
+GSE42127_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE42127", "GSE42127_clinical.RData")
+GSE50081_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE50081", "GSE50081_clinical.RData")
+GSE37745_CLINICAL_FILE = os.path.join(DATA_DIR, "GSE37745", "GSE37745_clinical.RData")
+LUAD_GSE81089_SERIES_MATRIX = os.path.join(DATA_DIR, "GSE81089", "GSE81089_series_matrix.txt")
+LUAD_Dolgalev_CLINICAL_FILE = os.path.join(DATA_DIR, "LUAD_Dolgalev", "meta_tumor_normal.txt")
+LUAD_Okayama_SERIES_MATRIX = os.path.join(DATA_DIR, "LUAD_Okayama", "GSE31210_series_matrix.txt")
+LUAD_Chen_CLINICAL_FILE = os.path.join(DATA_DIR, "LUAD_Chen", "meta_tumor.txt")
+LUAD_Chen_CLINICAL_FILE_FROM_PUBLICATION = os.path.join(DATA_DIR, "LUAD_Chen", "41588_2019_569_MOESM3_ESM.xlsx")
+TCGA_LUAD_CLINICAL_FILE = os.path.join(DATA_DIR, "TCGA_LUAD", "clinical.txt")
+PD1_VALIDATION_PLOT = os.path.join(FIGURES_DIR, "gsea_univariate_cox_results_validation.pdf")
+CLINICAL_FILE_OUTPUT = os.path.join(
+    DATA_DIR,
+    "{dataset}",
+    "clinical_subset_all.txt"
+)
+
+VALIDATION_DATASETS = {
+    "GSE30219": {
+        "input": {
+            "clinical_file": GSE30219_CLINICAL_FILE,
+            "publication_clinical": GSE30219_PUBLICATION_CLINICAL,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+            "--clinical_file_from_publication": "publication_clinical",
+        },
+    },
+
+    "GSE13213": {
+        "input": {
+            "clinical_file": GSE13213_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+
+    "GSE41271": {
+        "input": {
+            "clinical_file": GSE41271_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+
+    "GSE42127": {
+        "input": {
+            "clinical_file": GSE42127_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+
+    "GSE50081": {
+        "input": {
+            "clinical_file": GSE50081_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+
+    "GSE37745": {
+        "input": {
+            "clinical_file": GSE37745_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+
+    "GSE81089": {
+        "input": {
+            "gse_series_matrix": LUAD_GSE81089_SERIES_MATRIX,
+        },
+        "arg_map": {
+            "--gse_series_matrix_file": "gse_series_matrix",
+        },
+    },
+
+    "LUAD_Dolgalev": {
+        "input": {
+            "clinical_file": LUAD_Dolgalev_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+    "LUAD_Okayama": {
+        "input": {
+            "gse_series_matrix": LUAD_Okayama_SERIES_MATRIX,
+        },
+        "arg_map": {
+            "--gse_series_matrix_file": "gse_series_matrix",
+        },
+    },
+    "LUAD_Chen": {
+        "input": {
+            "clinical_file": LUAD_Chen_CLINICAL_FILE,
+            "publication_clinical": LUAD_Chen_CLINICAL_FILE_FROM_PUBLICATION,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+            "--clinical_file_from_publication": "publication_clinical",
+        },
+    },
+    "TCGA_LUAD": {
+        "input": {
+            "clinical_file": TCGA_LUAD_CLINICAL_FILE,
+        },
+        "arg_map": {
+            "--clinical_file": "clinical_file",
+        },
+    },
+}
+
+def make_clinical_args(wildcards, input):
+    return " ".join(
+        f"{flag} {input[input_name]}"
+        for flag, input_name in VALIDATION_DATASETS[wildcards.dataset]["arg_map"].items()
+    )
 
 
 
@@ -139,7 +266,11 @@ rule all:
         GSE81089_SAMPLES_PANDA,
         OKAYAMA_OUTPUT_PCA_FILE,
         OKAYAMA_EXPRESSION_PANDA,
-        OKAYAMA_SAMPLES_PANDA
+        OKAYAMA_SAMPLES_PANDA,
+        expand(
+            CLINICAL_FILE_OUTPUT,
+            dataset=VALIDATION_DATASETS.keys()
+        )
 
 
 rule download_from_GEO:
@@ -302,4 +433,24 @@ rule luad_Okayama_expression_analysis:
             --output_expression_clean_file {output.expression_matrix} \
             --output_samples_file {output.samples_file} \
             2> {log}
+        """
+
+rule prepare_clinical_data:
+    input:
+        unpack(lambda wc: VALIDATION_DATASETS[wc.dataset]["input"])
+    output:
+        clinical_output=CLINICAL_FILE_OUTPUT
+    params:
+        bin=config["bin"],
+        script=lambda wc: f"{wc.dataset}_select_survival_info_clinical.R",
+        args=make_clinical_args
+    log:
+        "logs/prepare_{dataset}_clinical_data.log"
+    message:
+        "Preparing {wildcards.dataset} clinical data"
+    shell:
+        """
+        Rscript {params.bin}/{params.script} \
+            {params.args} \
+            --clinical_output_file {output.clinical_output}
         """
