@@ -67,7 +67,7 @@ CHEN_SAMPLES_PANDA = os.path.join(PANDA_DIR, "LUAD_Chen_samples_for_PANDA.tsv")
 
 # PROCESSING OKAYAMA DATA
 OKAYAMA_DIR = os.path.join(DATA_DIR, "LUAD_Okayama")
-OKAYAMA_ORIGINAL_EXPRESSION_FILE = os.path.join(OKAYAMA_DIR, "Expr_tumor.txt")
+OKAYAMA_ORIGINAL_EXPRESSION_FILE = os.path.join(OKAYAMA_DIR, "Lung.cancer.ADENO.GSE31210.HGU133Plus2_EntrezCDF.data.RDS")
 OKAYAMA_OUTPUT_PCA_FILE = os.path.join(FIGURES_DIR, "LUAD_Okayama_pca_analysis.pdf")
 OKAYAMA_EXPRESSION_PANDA = os.path.join(PANDA_DIR, "LUAD_Okayama_expression_for_PANDA.tsv")
 OKAYAMA_SAMPLES_PANDA = os.path.join(PANDA_DIR, "LUAD_Okayama_samples_for_PANDA.tsv")
@@ -137,6 +137,10 @@ rule all:
         LUAD_GSE81089_OUTPUT_PCA_FILE,
         GSE81089_EXPRESSION_PANDA,
         GSE81089_SAMPLES_PANDA,
+        OKAYAMA_OUTPUT_PCA_FILE,
+        OKAYAMA_EXPRESSION_PANDA,
+        OKAYAMA_SAMPLES_PANDA
+
 
 rule download_from_GEO:
     output:
@@ -272,4 +276,30 @@ rule preprocess_expression:
             --pca_plot {output.pca_figure} \
             --output_dir {params.output_dir} \
             > {log} 2>&1
+        """
+
+rule luad_Okayama_expression_analysis:
+    """
+    Process LUAD Okayama expression data to perform PCA analysis
+    """
+    input:
+        expression_file = OKAYAMA_ORIGINAL_EXPRESSION_FILE
+    output:
+        pca_plot = OKAYAMA_OUTPUT_PCA_FILE,
+        expression_matrix = OKAYAMA_EXPRESSION_PANDA,
+        samples_file = OKAYAMA_SAMPLES_PANDA
+    log:
+        "logs/process_expression_LUAD_Okayama_expression_data.log"
+    message:
+        "Processing expression data"
+    params:
+        bin = config["bin"]
+    shell:
+        """
+        Rscript {params.bin}/LUAD_Okayama_expression_preprocessing.R \
+            --expression_file {input.expression_file} \
+            --output_pca_file {output.pca_plot} \
+            --output_expression_clean_file {output.expression_matrix} \
+            --output_samples_file {output.samples_file} \
+            2> {log}
         """
