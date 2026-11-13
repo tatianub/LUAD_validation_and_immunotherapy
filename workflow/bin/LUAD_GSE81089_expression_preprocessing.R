@@ -4,7 +4,8 @@
 required_libraries <- c(
     "data.table", "dplyr",
     "ggplot2", "optparse",
-    "ggrepel"
+    "ggrepel",
+    "Matrix"
 )
 for (lib in required_libraries) {
     suppressPackageStartupMessages(
@@ -119,8 +120,11 @@ create_pca_outlier_plot(data_matrix,
                             label_outliers = TRUE)
 dev.off()
 log_exp <- expr
-save(log_exp, file = OUTPUT_EXPRESSION_CLEAN_FILE)
+write.table(log_exp, file = OUTPUT_EXPRESSION_CLEAN_FILE,
+            col.names = FALSE, sep = "\t", 
+            row.names = TRUE, quote = FALSE)
 samples <- data.frame(samples = colnames(log_exp))
 write.table(samples, OUTPUT_SAMPLES_FILE,
-            col.names = FALSE, sep = "\t", row.names = TRUE, quote = FALSE)
+            col.names = FALSE, sep = "\t",
+            row.names = TRUE, quote = FALSE)
 
