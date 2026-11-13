@@ -11,9 +11,37 @@
 
 rule all_network_postprocessing:
     input:
-        expand(MERGED_NETWORKS_FILE_DATASET_NORMALIZED, dataset=NETWORK_POSTPROCESSING_DATASETS),
-        expand(NETWORK_EDGE_FILE_DATASET, dataset=NETWORK_POSTPROCESSING_DATASETS)
+        expand(
+            MERGED_NETWORKS_FILE_DATASET_NORMALIZED,
+            dataset=NETWORK_POSTPROCESSING_DATASETS
+        ),
+        expand(
+            NETWORK_EDGE_FILE_DATASET,
+            dataset=NETWORK_POSTPROCESSING_DATASETS
+        ),
+        expand(
+            INDEGREES_DATASET,
+            dataset=NETWORK_POSTPROCESSING_DATASETS,
+            norm=["norm"]
+        )
 
+###############################################################################
+# COPY PRECOMPUTED TCGA_LUAD INDEGREES
+###############################################################################
+
+rule copy_TCGA_LUAD_indegrees:
+    input:
+        indegrees = TCGA_LUAD_INDEGREES_RESOURCE
+    output:
+        indegrees = TCGA_LUAD_INDEGREES_FILE
+    message:
+        "Copying precomputed TCGA_LUAD indegrees from resources"
+    shell:
+        """
+        mkdir -p $(dirname {output.indegrees:q})
+        cp {input.indegrees:q} {output.indegrees:q}
+        """
+        
 ###############################################################################
 # 1. CREATE LIONESS SAMPLE MAPPINGS
 ###############################################################################
@@ -114,4 +142,50 @@ rule create_network_edge_file:
             --panda_network_file {input.panda_input} \
             --output_edge_file {output.edge_file} \
             > {log} 2>&1
+        """
+###############################################################################
+# 5. NETWORK ANALYSIS
+###############################################################################
+
+rule network_analysis:
+    """
+    Basic network analysis
+    
+    Output files:
+    - Target gene specific network (.RData)
+    - Network indegrees (.tsv)
+    - PCA plot (.pdf)
+
+    """
+    input:
+        network = MERGED_NETWORKS_FILE_DATASET_NORM_RAW,
+        edges = NETWORK_EDGE_FILE_DATASET
+    output:
+        target_network = PD1_NETWORK_DATASET,
+        indegrees = INDEGREES_DATASET,
+        outdegrees = OUTDEGREES_DATASET,
+        pca_plot = PCA_INDEGREES_DATASET
+    params:
+        bin = config["bin"],
+        target_gene = "CD274",
+        seed = 2025
+    wildcard_constraints:
+        dataset = "|".join(re.escape(d) for d in NETWORK_POSTPROCESSING_DATASETS),
+        norm = "norm"
+    log:
+        "logs/network_analysis_{dataset}_{norm}.log"
+    message:
+        "Performing basic network analysis on {wildcards.dataset} dataset with {wildcards.norm} network"
+    shell:
+        """        
+        Rscript {params.bin}/network_analysis.R \
+            --network_file {input.network} \
+            --edges_file {input.edges} \
+            --target_network {output.target_network} \
+            --indegrees {output.indegrees} \
+            --outdegrees {output.outdegrees} \
+            --pca_plot {output.pca_plot} \
+            --target_gene {params.target_gene} \
+            --seed {params.seed} \
+        2> {log}
         """
