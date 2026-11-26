@@ -123,121 +123,316 @@ plot_df <- plot_df %>%
 
 first_ds <- levels(plot_df$dataset)[1]
 
-
 ##################
 ## Create plot  ##
 ##################
-# plotting with pale yellow box for first dataset and highlight points
+nes_limit <- ceiling(max(abs(plot_df$NES_plot), na.rm = TRUE))
 p <- ggplot(plot_df, aes(x = dataset, y = neglog10_pval)) +
+
+  # Highlight TCGA-LUAD with a light gray background
   annotate(
     "rect",
-    xmin = 0.5, xmax = 1.5, ymin = -Inf, ymax = Inf,
-    fill = "#d3d3d3", alpha = 0.65
+    xmin = 0.5, xmax = 1.5,
+    ymin = -Inf, ymax = Inf,
+    fill = "#F0F0F0",
+    alpha = 1
   ) +
+
+  # Significance threshold: P = 0.05
   geom_hline(
     yintercept = -log10(0.05),
     linetype = "dashed",
-    color = "grey50"
+    colour = "grey45",
+    linewidth = 0.5
   ) +
+
+  # Significance threshold: P = 0.1
   geom_hline(
     yintercept = -log10(0.1),
     linetype = "dotted",
-    color = "grey70"
+    colour = "grey65",
+    linewidth = 0.5
   ) +
+
+  # Annotate significance thresholds
   annotate(
     "text",
-    x = Inf, y = -log10(0.05), label = "p = 0.05",
-    hjust = 1.05, vjust = -0.3, size = 3.2, color = "grey50"
+    x = Inf,
+    y = -log10(0.05),
+    label = "italic(P) == 0.05",
+    parse = TRUE,
+    hjust = 1.05,
+    vjust = -0.4,
+    size = 3.2,
+    colour = "grey45"
   ) +
+
   annotate(
     "text",
-    x = Inf, y = -log10(0.1), label = "p = 0.1",
-    hjust = 1.05, vjust = -0.3, size = 3.2, color = "grey70"
+    x = Inf,
+    y = -log10(0.1),
+    label = "italic(P) == 0.1",
+    parse = TRUE,
+    hjust = 1.05,
+    vjust = -0.4,
+    size = 3.2,
+    colour = "grey65"
   ) +
-  # background points (all datasets)
+
+  # Points for all datasets
   geom_point(
-    aes(fill = NES_plot, size = neglog10_pval_cap),
-    colour = "black", shape = 21, stroke = 0.35, alpha = 0.9
+    aes(
+      fill = NES_plot,
+      size = neglog10_pval_cap
+    ),
+    colour = "black",
+    shape = 21,
+    stroke = 0.35,
+    alpha = 0.9
   ) +
-  # overlay: emphasize the first dataset points (thicker border)
+
+  # Emphasize TCGA-LUAD points with thicker borders
   geom_point(
     data = subset(plot_df, dataset == first_ds),
-    aes(fill = NES_plot, size = neglog10_pval_cap),
-    colour = "black", shape = 21, stroke = 1.0, alpha = 1
+    aes(
+      fill = NES_plot,
+      size = neglog10_pval_cap
+    ),
+    colour = "black",
+    shape = 21,
+    stroke = 1.0,
+    alpha = 1
   ) +
-  ggrepel::geom_text_repel(
-    data = subset(plot_df, pval < 0.1),
-    aes(label = outcome),
-    size = 3.2,
-    max.overlaps = 20
+
+# Label only endpoints with P < 0.1
+ggrepel::geom_text_repel(
+  data = subset(plot_df, pval < 0.1),
+  aes(
+    label = outcome,
+    point.size = neglog10_pval_cap
+  ),
+  size = 3.2,
+  colour = "black",
+  seed = 123,
+  box.padding = 0.5,
+  point.padding = 0.5,
+  force = 3,
+  force_pull = 0.5,
+  max.overlaps = Inf,
+  max.iter = 50000,
+  max.time = 5,
+  min.segment.length = 0,
+  segment.colour = "grey50",
+  segment.size = 0.25,
+  show.legend = FALSE
+) +
+scale_size_continuous(
+  name = expression(-log[10](italic(P))),
+  range = c(2.5, 8),
+  aesthetics = c("size", "point.size")
+) +
+  # NES color scale
+  # Negative NES: red
+  # Positive NES: blue
+  # Masked NES: gray
+scale_fill_gradient2(
+  low = "#2166AC",
+  mid = "#F7F7F7",
+  high = "#B2182B",
+  midpoint = 0,
+  limits = c(-nes_limit, nes_limit),
+  breaks = c(-nes_limit, 0, nes_limit),
+  labels = c(
+    paste0(-nes_limit, " (Better\noutcome)"),
+    "0",
+    paste0(nes_limit, " (Worse\noutcome)")
+  ),
+  na.value = "grey80",
+  name = "NES"
   ) +
-  scale_fill_gradient2(
-    low = "#2166AC", mid = "#f7f7f7", high = "#B2182B",
-    midpoint = 0, na.value = "grey80", name = "NES"
+  # Additional space for labels and meta-analysis annotation
+  scale_y_continuous(
+    expand = expansion(mult = c(0.05, 0.12))
   ) +
-  scale_size_continuous(
-    name = expression(-log[10](p)),
-    range = c(2.5, 8)
+
+  labs(
+    x = NULL,
+    y = expression(-log[10](italic(P)))
   ) +
-  labs(x = NULL, y = expression(-log[10](p))) +
+
   coord_cartesian(clip = "off") +
+
+  # Clean publication-style theme
   theme_bw(base_size = 13) +
+
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "right"
+    # Axis labels
+    axis.text.x = element_text(
+      angle = 45,
+      hjust = 1,
+      vjust = 1,
+      colour = "black",
+      size = 11
+    ),
+
+    axis.text.y = element_text(
+      colour = "black",
+      size = 11
+    ),
+
+    axis.title.y = element_text(
+      size = 13,
+      margin = margin(r = 8)
+    ),
+
+    # Minimal horizontal gridlines
+    panel.grid.major.y = element_line(
+      colour = "grey92",
+      linewidth = 0.3
+    ),
+
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+
+    # Remove full panel border
+    panel.border = element_blank(),
+
+    # Retain x and y axis lines
+    axis.line = element_line(
+      colour = "black",
+      linewidth = 0.4
+    ),
+
+    axis.ticks = element_line(
+      colour = "black",
+      linewidth = 0.4
+    ),
+
+    # Legends
+    legend.position = "right",
+    legend.title = element_text(size = 11),
+    legend.text = element_text(size = 10),
+    legend.background = element_blank(),
+    legend.key = element_blank(),
+    legend.spacing.y = grid::unit(0.3, "cm"),
+
+    # Plot margins
+    plot.margin = margin(
+      t = 10, r = 15,
+      b = 10, l = 10
+    )
   )
 
 
 ###################################
 ## Meta-analysis (Stouffer)      ##
 ###################################
-# meta-analysis (Stouffer) across datasets per outcome
+
+# Meta-analysis across datasets per outcome
 meta_stouffer <- function(NES, p, weights = NULL) {
-  ok <- is.finite(NES) & is.finite(p) & p > 0 & p <= 1
-  NES <- NES[ok]; p <- p[ok]
+
+  ok <- is.finite(NES) &
+        is.finite(p) &
+        p > 0 &
+        p <= 1
+
+  NES <- NES[ok]
+  p <- p[ok]
+
   z <- sign(NES) * qnorm(1 - p / 2)
+
   if (is.null(weights)) {
+
     combined_z <- sum(z) / sqrt(length(z))
+
   } else {
+
     weights <- weights[ok]
-    combined_z <- sum(weights * z) / sqrt(sum(weights^2))
+
+    combined_z <- sum(weights * z) /
+                  sqrt(sum(weights^2))
+
   }
+
   combined_p <- 2 * pnorm(-abs(combined_z))
+
   data.frame(
     n_datasets = length(z),
     combined_z = combined_z,
     combined_p = combined_p,
-    direction = ifelse(combined_z > 0, "positive", "negative")
+    direction = ifelse(
+      combined_z > 0,
+      "positive",
+      "negative"
+    )
   )
 }
 
-# exclude TCGA for meta-analysis
-res_all <- res_all[-grep("TCGA_LUAD", res_all$dataset), ]
 
-# compute meta p per outcome and print
-meta_by_outcome <- res_all %>%
+# Exclude TCGA from the meta-analysis
+# without modifying the original results object
+res_validation <- res_all %>%
+  filter(!grepl("TCGA_LUAD", dataset))
+
+
+# Compute meta-analysis P-values per outcome
+meta_by_outcome <- res_validation %>%
   group_by(outcome) %>%
-  summarise(meta = list(meta_stouffer(NES = NES, p = pval))) %>%
+  summarise(
+    meta = list(
+      meta_stouffer(
+        NES = NES,
+        p = pval
+      )
+    ),
+    .groups = "drop"
+  ) %>%
   tidyr::unnest_wider(meta)
 
 print(meta_by_outcome)
 
-# optional: extract OS meta and add to plot later
-os_meta <- meta_by_outcome %>% filter(outcome == "OS")
-# os_meta$combined_p is the Stouffer p-value for OS
+
+# Extract OS meta-analysis results
+os_meta <- meta_by_outcome %>%
+  filter(outcome == "OS")
 
 
 #################################
 ## Annotate plot and save PDF  ##
 #################################
-# annotate the plot with OS meta p
-p <- p + annotate(
-  "text",
-  x = Inf, y = Inf,
-  label = paste0("OS meta p=", signif(os_meta$combined_p, 2)),
-  hjust = 1.1, vjust = 2, size = 3.2
+
+# Format meta-analysis P-value in scientific notation
+meta_p <- os_meta$combined_p
+
+exponent <- floor(log10(meta_p))
+mantissa <- signif(meta_p / 10^exponent, 2)
+
+meta_label <- sprintf(
+  "'OS meta-analysis:'~italic(P)==%g%%*%%10^{%d}",
+  mantissa,
+  exponent
 )
 
+
+# Add OS meta-analysis P-value in the upper-right corner
+p <- p + annotate(
+  "text",
+  x = Inf,
+  y = Inf,
+  label = meta_label,
+  parse = TRUE,
+  hjust = 1.05,
+  vjust = 1.5,
+  size = 3.5,
+  colour = "black"
+)
+
+
+# Display plot
+print(p)
+
+
+# Save PDF
 ggsave(
   VALIDATION_PLOT_FILE,
   p,
