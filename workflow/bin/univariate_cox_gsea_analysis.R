@@ -112,7 +112,7 @@ option_list <- list(
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opt <- optparse::parse_args(opt_parser)
 
-set.seed(GSEA_SEED)
+
 
 INDEGREE_FILE <- opt$indegree_file
 CLINICAL_FILE <- opt$clinical_file
@@ -128,6 +128,7 @@ GSEA_SAMPLE_SIZE <- as.integer(opt$gsea_sample_size)
 GSEA_MIN_SIZE <- as.integer(opt$gsea_min_size)
 GSEA_MAX_SIZE <- as.integer(opt$gsea_max_size)
 
+set.seed(GSEA_SEED)
 if (is.na(NCORES) || NCORES < 1L) {
   NCORES <- 1L
 }
